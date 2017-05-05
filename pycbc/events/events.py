@@ -507,6 +507,7 @@ class EventManager(object):
                 numpy.array([filters_per_core / float(self.run_time)])
             f['search/setup_time_fraction'] = \
                 numpy.array([float(self.setup_time) / float(self.run_time)])
+            f['search/run_time'] = numpy.array([float(self.run_time)])
 
         if 'gating_info' in self.global_params:
             gating_info = self.global_params['gating_info']
