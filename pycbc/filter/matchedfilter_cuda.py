@@ -58,3 +58,46 @@ def _correlate_factory(x, y, z):
     return CUDACorrelator
 
 
+
+
+
+
+
+########## Building correlate without using elementwise kernal ##########
+
+
+
+import pycuda.driver as cuda
+import pycuda.autoinit
+from pycuda.compiler import SourceModule
+
+
+def correlate2(a, b, out, stream=None):
+    N = 4
+    NBlocks = 2
+    NThreads = 2
+
+    x =a.data.gpudata
+    y =b.data.gpudata
+    z =out.data.gpudata
+
+    #a_gpu = cuda.mem_alloc(a.nbytes)
+    #b_gpu = cuda.mem_alloc(b.nbytes)
+    #out_gpu = cuda.mem_alloc(out.nbytes)
+
+    mod = SourceModule("""
+        __global__ void correlate2(float2 *x, float2 *y, float2 *z) {
+            const int i = threadIdx.x + blockIdx.x * blockDim.x;
+            if(i < 4) {
+                z[i].x = x[i].x * y[i].x + x[i].y * y[i].y;
+                z[i].y = x[i].x * y[i].y - x[i].y * y[i].x;
+            }
+        }""")
+
+    krnl = mod.get_function("correlate2")
+    grid = (NBlocks, 1)
+    block = (NThreads, 1, 1)
+
+    krnl.prepare("PPP")
+    krnl.prepared_call(grid, block, x, y, z)
+    
