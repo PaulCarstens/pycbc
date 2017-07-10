@@ -250,6 +250,92 @@ __global__ void linear_interp(float2 *h, float df, int hlen,
     return;
 
 }
+
+
+
+__global__ void linear_interp_correlate(float2 *sh, float df, int hlen,            
+                              float flow, float fmax, int texlen,                  
+                              int *lower, int *upper, float2 *s){                  
+    /*                                                                             
+      Input parameters:                                                            
+      =================                                                            
+      df:     The difference between successive frequencies in the                 
+              output array                                                         
+      hlen:   The length of the output array                                       
+      flow:   The minimum frequency at which to generate an interpolated           
+              waveform                                                             
+      fmax:   The maximum frequency in the sample frequency texture; i.e.,         
+              freq_tex[texlen-1]                                                   
+      texlen: The common length of the three sample textures                       
+      lower:  Array that for each thread block stores the index into the           
+              sample frequency array of the largest sample frequency that          
+              is less than or equal to the smallest frequency considered           
+              by that thread block.                                                
+      upper:  Array that for each thread block stores the index into the           
+              sample frequency array of the smallest sample frequency that         
+              is greater than the next frequency considered *after* that           
+              thread block.                                                        
+      s:      Waveform to be correlated with h.                                    
+      Global variables:                                                            
+      ===================                                                          
+      freq_tex:  Texture of sample frequencies (its length is texlen)              
+      amp_tex:   Texture of amplitudes corresponding to sample frequencies         
+      phase_tex: Texture of phases corresponding to sample frequencies             
+      Output parameters:                                                           
+      ==================                                                           
+      sh: array of complex
+    */                                                                             
+    __shared__ int low[1];                                                         
+    __shared__ int high[1];                                                        
+    int idx;                                                                       
+    float2 tmp;                                                                    
+    //float tmp;                                                                   
+    float amp, freq, phase, inv_df, x, y;                                          
+    float a0, a1, f0, f1, p0, p1;                                                  
+    // Load values in global memory into shared memory that                        
+    // all threads in this block will use:                                         
+    if (threadIdx.x == 0) {                                                        
+        low[0] = lower[blockIdx.x];                                                
+        high[0] = upper[blockIdx.x];                                               
+    }                                                                              
+    __syncthreads();                                                               
+    int i = ${ntpb}*blockIdx.x + threadIdx.x;                                      
+    if (i < hlen){                                                                 
+        freq = df*i;                                                               
+        if ( (freq<flow) || (freq>fmax) ){                                         
+          //tmp = 0.0;                                                             
+          tmp.x = 0.0;                                                             
+          tmp.y = 0.0;                                                             
+        } else {                                                                   
+          idx = binary_search(freq, low[0], high[0]);                              
+          if (idx < texlen-1) {
+              f0 = tex1Dfetch(freq_tex, idx);                                      
+              f1 = tex1Dfetch(freq_tex, idx+1);                                    
+              inv_df = 1.0/(f1-f0);                                                
+              a0 = tex1Dfetch(amp_tex, idx);                                       
+              a1 = tex1Dfetch(amp_tex, idx+1);                                     
+              p0 = tex1Dfetch(phase_tex, idx);                                     
+              p1 = tex1Dfetch(phase_tex, idx+1);                                   
+              amp = a0*inv_df*(f1-freq) + a1*inv_df*(freq-f0);                     
+              phase = p0*inv_df*(f1-freq) + p1*inv_df*(freq-f0);                   
+          } else {                                                                 
+             // We must have idx = texlen-1, so this frequency                     
+             // exactly equals fmax                                                
+             amp = tex1Dfetch(amp_tex, idx);                                       
+             phase = tex1Dfetch(phase_tex, idx);                                   
+          }                                                                        
+          __sincosf(phase, &y, &x);                                                
+          tmp.x = amp*x*s[i].x + amp*y*s[i].y;                                     
+          tmp.y = amp*x*s[i].y - amp*y*s[i].x;                                     
+          //tmp = amp;                                                             
+          //tmp.x = s[i].x;                                                        
+          //tmp.y = s[i].y;                                                        
+                                                                                   
+        }                                                                          
+       sh[i] = tmp;                                                                
+    }                                                                              
+    return;                                                                        
+}
 """)
 
 dckernel_cache = {}
@@ -272,7 +358,8 @@ def get_dckernel(slen):
         fn1.prepare("PPifff", texrefs=[freq_tex])
         fn2 = mod.get_function("linear_interp")
         fn2.prepare("PfiffiPP", texrefs=[freq_tex, amp_tex, phase_tex])
-        dckernel_cache[nb] = (fn1, fn2, freq_tex, amp_tex, phase_tex, nt, nb)
+        fn3.prepare("PfiffiPPP", texrefs=[freq_tex, amp_tex, phase_tex])
+        dckernel_cache[nb] = (fn1, fn2, fn3, freq_tex, amp_tex, phase_tex, nt, nb)
         return dckernel_cache[nb]
     
     
@@ -284,11 +371,11 @@ class CUDALinearInterpolate(object):
         lookups = get_dckernel(self.hlen)
         self.fn1 = lookups[0]
         self.fn2 = lookups[1]
-        self.freq_tex = lookups[2]
-        self.amp_tex = lookups[3]
-        self.phase_tex = lookups[4]
-        self.nt = lookups[5]
-        self.nb = lookups[6]
+        self.freq_tex = lookups[3]
+        self.amp_tex = lookups[4]
+        self.phase_tex = lookups[5]
+        self.nt = lookups[6]
+        self.nb = lookups[7]
         self.lower = zeros(self.nb, dtype=numpy.int32).data.gpudata
         self.upper = zeros(self.nb, dtype=numpy.int32).data.gpudata
 
@@ -336,3 +423,67 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin, start_inde
     pycbc.scheme.mgr.state.context.synchronize()
     return output
 
+
+class CUDALinearInterpolateCorrelate(object):
+    def __init__(self, s, output, df):
+        self.output = output.data.gpudata
+        self.df = numpy.float32(df)
+        self.hlen = numpy.int32(len(output))
+        lookups = get_dckernel(self.hlen)
+        self.fn1 = lookups[0]
+        self.fn3 = lookups[2]
+        self.freq_tex = lookups[3]
+        self.amp_tex = lookups[4]
+        self.phase_tex = lookups[5]
+        self.nt = lookups[6]
+        self.nb = lookups[7]
+        self.lower = zeros(self.nb, dtype=numpy.int32).data.gpudata
+        self.upper = zeros(self.nb, dtype=numpy.int32).data.gpudata
+        self.s = s.data.gpudata
+
+    def interpolatecorrelate(self, flow, freqs, amps, phases):
+        flow = numpy.float32(flow)
+        texlen = numpy.int32(len(freqs))
+        fmax = numpy.float32(freqs[texlen-1])
+        freqs_gpu = gpuarray.to_gpu(freqs)
+        freqs_gpu.bind_to_texref_ext(self.freq_tex, allow_offset=False)
+        amps_gpu = gpuarray.to_gpu(amps)
+        amps_gpu.bind_to_texref_ext(self.amp_tex, allow_offset=False)
+        phases_gpu = gpuarray.to_gpu(phases)
+        phases_gpu.bind_to_texref_ext(self.phase_tex, allow_offset=False)
+        fn1 = self.fn1.prepared_call
+        fn3 = self.fn3.prepared_call
+        fn1((1, 1), (self.nb, 1, 1), self.lower, self.upper, texlen, self.df, flow, fmax)
+        fn3((self.nb, 1), (self.nt, 1, 1), self.output, self.df, self.hlen, flow, fmax, texlen, self.lower, self.upper, self.s)
+        pycbc.scheme.mgr.state.context.synchronize()
+        return
+
+
+def inline_linear_interp_cor(amps, phases, freqs, s, output, df, flow, imin=None, start_index=None):
+    # Note that imin and start_index are ignored in the GPU code; they are only
+    # needed for CPU.
+
+    if output.precision == 'double':
+        raise NotImplementedError("Double precision linear interpolation not currently supported on CUDA scheme")
+    flow = numpy.float32(flow)
+    texlen = numpy.int32(len(freqs))
+    fmax = numpy.float32(freqs[texlen-1])
+    hlen = numpy.int32( len(output) )
+    (fn1, fn2, ftex, atex, ptex, nt, nb) = get_dckernel(hlen)
+    freqs_gpu = gpuarray.to_gpu(freqs)
+    freqs_gpu.bind_to_texref_ext(ftex, allow_offset=False)
+    amps_gpu = gpuarray.to_gpu(amps)
+    amps_gpu.bind_to_texref_ext(atex, allow_offset=False)
+    phases_gpu = gpuarray.to_gpu(phases)
+    phases_gpu.bind_to_texref_ext(ptex, allow_offset=False)
+    fn1 = fn1.prepared_call
+    fn3 = fn3.prepared_call
+    df = numpy.float32(df)
+    g_s = s.data.gpudata
+    g_out = output.data.gpudata
+    lower = zeros(nb, dtype=numpy.int32).data.gpudata
+    upper = zeros(nb, dtype=numpy.int32).data.gpudata
+    fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
+    fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_s)
+    pycbc.scheme.mgr.state.context.synchronize()
+    return output
