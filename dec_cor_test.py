@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from pycbc import scheme
 from pycbc.types import Array
 from pycbc.types import zeros
-from decompress_correlate_test import decompress_correlate_test
+from dec_cor import CUDALinearInterpolateCorrelate
+from dec_cor import inline_linear_interp_cor
 
 df = 1
 
@@ -31,7 +32,10 @@ for i in range(0, len(output)):
 
 
 with ctx:
-    decompress_correlate_test(amp, phase, freq, s, output, df)
+#    intcor = CUDALinearInterpolateCorrelate(s, output, df)
+#    intcor.interpolatecorrelate(20, freq, amp, phase)
+    inline_linear_interp_cor(amp, phase, freq, s, output, df, 20)
+
 
 
 for i in range(0, len(output)):
