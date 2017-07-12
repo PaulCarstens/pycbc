@@ -589,12 +589,12 @@ class LiveFilterBank(TemplateBank):
 
 class FilterBank(TemplateBank):
     def __init__(self, filename, filter_length, delta_f, dtype,
-                 out=None, max_template_length=None,
+                 s=None, out=None, max_template_length=None,
                  approximant=None, parameters=None,
                  enable_compressed_waveforms=True,
                  low_frequency_cutoff=None,
                  waveform_decompression_method=None,
-                 **kwds):
+                 **kwds, use_merged_correlate=False):
         self.out = out
         self.dtype = dtype
         self.f_lower = low_frequency_cutoff
@@ -606,6 +606,8 @@ class FilterBank(TemplateBank):
         self.max_template_length = max_template_length
         self.enable_compressed_waveforms = enable_compressed_waveforms
         self.waveform_decompression_method = waveform_decompression_method
+        self.use_merged_correlate = use_merged_correlate
+        self.s
 
         super(FilterBank, self).__init__(filename, approximant=approximant,
             parameters=parameters, **kwds)
@@ -646,7 +648,7 @@ class FilterBank(TemplateBank):
         decomp_scratch = FrequencySeries(tempout[0:self.filter_length], delta_f=delta_f, copy=False)
 
         # Get the decompressed waveform
-        hdecomp = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method)
+        hdecomp = compressed_waveform.decompress(s=self.s, out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method)
         p = props(self.table[index])
         p.pop('approximant')
         try:
@@ -711,21 +713,29 @@ class FilterBank(TemplateBank):
             f_low = self.f_lower
         logging.info('%s: generating %s from %s Hz' % (index, approximant, f_low))
 
+        distance = 1.0 / DYN_RANGE_FAC
         # Clear the storage memory
         poke  = tempout.data # pylint:disable=unused-variable
-        tempout.clear()
 
-        # Get the waveform filter
-        distance = 1.0 / DYN_RANGE_FAC
-        if self.has_compressed_waveforms and self.enable_compressed_waveforms:
-            htilde = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
-                                                    approximant=approximant, df=None)
-        else :
-            htilde = pycbc.waveform.get_waveform_filter(
-                tempout[0:self.filter_length], self.table[index],
-                approximant=approximant, f_lower=f_low, f_final=f_end,
-                delta_f=self.delta_f, delta_t=self.delta_t, distance=distance,
-                **self.extra_args)
+        if self.use_merged_correlate:
+            if self.has_compressed_waveforms and self.enable_compressed_waveforms:
+                htilde = tempout
+                pass
+            else:
+                raise ValueError("Merged interpolate correlate function requires compressed waveform.")
+        else:
+            tempout.clear()
+
+            # Get the waveform filter
+            if self.has_compressed_waveforms and self.enable_compressed_waveforms:
+                htilde = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
+                                                        approximant=approximant, df=None)
+            else :
+                htilde = pycbc.waveform.get_waveform_filter(
+                    tempout[0:self.filter_length], self.table[index],
+                    approximant=approximant, f_lower=f_low, f_final=f_end,
+                    delta_f=self.delta_f, delta_t=self.delta_t, distance=distance,
+                    **self.extra_args)
 
         # If available, record the total duration (which may
         # include ringdown) and the duration up to merger since they will be
