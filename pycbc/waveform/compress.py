@@ -326,7 +326,13 @@ def inline_linear_interp(amp, phase, sample_frequencies, output,
                          df, f_lower, imin, start_index):
     return
 
-def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
+@schemed("pycbc.waveform.decompress_")
+def inline_linear_interp_cor(amp, phase, sample_frequencies, s, output,
+                         df, f_lower, imin, start_index):
+    return
+
+
+def fd_decompress(amp, phase, sample_frequencies, s=None, out=None, df=None,
                   f_lower=None, interpolation='inline_linear'):
     """Decompresses an FD waveform using the given amplitude, phase, and the
     frequencies at which they are sampled at.
@@ -396,6 +402,13 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
         # Call the scheme-dependent function
         inline_linear_interp(amp, phase, sample_frequencies, out,
                              df, f_lower, imin, start_index)
+    elif interpolation == "inline_linear_cor":
+        # Call the scheme-dependent function                                                         
+        inline_linear_interp_cor(amp, phase, sample_frequencies, s, out,
+                             df, f_lower, imin, start_index)
+        
+
+
     else:
         # use scipy for fancier interpolation
         sample_frequencies = numpy.array(sample_frequencies)
@@ -563,7 +576,7 @@ class CompressedWaveform(object):
         """Clear self's cache of amplitude, phase, and sample_points."""
         self._cache.clear()
 
-    def decompress(self, out=None, df=None, f_lower=None, interpolation=None):
+    def decompress(self, s=None, out=None, df=None, f_lower=None, interpolation=None):
         """Decompress self.
 
         Parameters
@@ -594,7 +607,7 @@ class CompressedWaveform(object):
         if interpolation is None:
             interpolation = self.interpolation
         return fd_decompress(self.amplitude, self.phase, self.sample_points,
-                             out=out, df=df, f_lower=f_lower,
+                             s=s, out=out, df=df, f_lower=f_lower,
                              interpolation=interpolation)
 
     def write_to_hdf(self, fp, template_hash, root=None, precision=None):
