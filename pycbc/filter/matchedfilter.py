@@ -307,7 +307,7 @@ class MatchedFilterControl(object):
             The snr values at the trigger locations.
         """
 
-        if tnum=None:
+        if tnum==None:
             raise ValueError("Merged correlate function requires template index tnum")
         if not self.bank.use_merged_correlate:
             raise ValueError("FilterBank must be using merged correlate function as well")
