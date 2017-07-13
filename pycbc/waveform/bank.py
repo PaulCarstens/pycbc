@@ -589,12 +589,12 @@ class LiveFilterBank(TemplateBank):
 
 class FilterBank(TemplateBank):
     def __init__(self, filename, filter_length, delta_f, dtype,
-                 s=None, out=None, max_template_length=None,
+                 out=None, max_template_length=None,
                  approximant=None, parameters=None,
                  enable_compressed_waveforms=True,
                  low_frequency_cutoff=None,
                  waveform_decompression_method=None,
-                 **kwds, use_fused_correlate=False):
+                 **kwds, use_merged_correlate=False):
         self.out = out
         self.dtype = dtype
         self.f_lower = low_frequency_cutoff
@@ -607,7 +607,6 @@ class FilterBank(TemplateBank):
         self.enable_compressed_waveforms = enable_compressed_waveforms
         self.waveform_decompression_method = waveform_decompression_method
         self.use_merged_correlate = use_merged_correlate
-        self.s
 
         super(FilterBank, self).__init__(filename, approximant=approximant,
             parameters=parameters, **kwds)
@@ -661,13 +660,19 @@ class FilterBank(TemplateBank):
         hdecomp.length_in_time = hdecomp.chirp_length
         return hdecomp
 
-def get_decompressed_correlated_waveform(self, tempout, index, f_lower=None,
-                                  approximant=None, df=None):
+    def get_decompressed_correlated_waveform(self, s, output, index, f_lower=None,
+                                             approximant=None, df=None):
         """Returns a frequency domain decompressed waveform for the template
         in the bank corresponding to the index taken in as an argument. The
         decompressed waveform is obtained by interpolating in frequency space,
         the amplitude and phase points for the compressed template that are
         read in from the bank."""
+
+        if not s:
+            raise ValueError("Merged decompress correlate function requires a waveform to correlate htilde with")
+        if not output:
+            raise ValueError("Merged decompress correlate function requires an output location")
+
 
         from pycbc.waveform.waveform import props
         from pycbc.waveform import get_waveform_filter_length_in_time
@@ -693,10 +698,10 @@ def get_decompressed_correlated_waveform(self, tempout, index, f_lower=None,
             delta_f = self.delta_f
 
         # Create memory space for writing the decompressed waveform
-        decomp_scratch = FrequencySeries(tempout[0:self.filter_length], delta_f=delta_f, copy=False)
+        decomp_scratch = FrequencySeries(out[0:self.filter_length], delta_f=delta_f, copy=False)
 
         # Get the decompressed waveform
-        hdecomp = compressed_waveform.decompress(s=self.s, out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method)
+        output = compressed_waveform.decompress(s=s, out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method)
         p = props(self.table[index])
         p.pop('approximant')
         try:
@@ -705,9 +710,9 @@ def get_decompressed_correlated_waveform(self, tempout, index, f_lower=None,
             tmpltdur = None
         if tmpltdur is None or tmpltdur==0.0 :
             tmpltdur = get_waveform_filter_length_in_time(approximant, **p)
-        hdecomp.chirp_length = tmpltdur
-        hdecomp.length_in_time = hdecomp.chirp_length
-        return hdecomp
+        output.chirp_length = tmpltdur
+        output.length_in_time = output.chirp_length
+        
 
 
     def generate_with_delta_f_and_max_freq(self, t_num, max_freq, delta_f,
