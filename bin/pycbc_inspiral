@@ -169,6 +169,8 @@ parser.add_argument("--use-compressed-waveforms", action="store_true", default=F
                     help='Use compressed waveforms from the bank file.')
 parser.add_argument("--waveform-decompression-method", action='store', default=None,
                     help='Method to be used decompress waveforms from the bank file.')
+parser.add_argument("--use-merged-correlate", action='store', default=False,
+                    help='Use merged correlate and decompress waveform CUDA function.')
 
 # Add options groups
 psd.insert_psd_option_group(parser)
@@ -257,15 +259,6 @@ with ctx:
             ncores = 1
 
 
-    matched_filter = MatchedFilterControl(opt.low_frequency_cutoff, None,
-                                   opt.snr_threshold, tlen, delta_f, complex64,
-                                   segments, template_mem, use_cluster,
-                                   downsample_factor=opt.downsample_factor,
-                                   upsample_threshold=opt.upsample_threshold,
-                                   upsample_method=opt.upsample_method,
-                                   gpu_callback_method=opt.gpu_callback_method,
-                                   cluster_function=opt.cluster_function)
-
     bank_chisq = vetoes.SingleDetBankVeto(opt.bank_veto_bank_file,
                                           flen, delta_f, flow, complex64,
                                           phase_order=opt.order,
@@ -293,7 +286,21 @@ with ctx:
         out=template_mem, max_template_length=opt.max_template_length,
         enable_compressed_waveforms=True if opt.use_compressed_waveforms else False,
         waveform_decompression_method=
-        opt.waveform_decompression_method if opt.use_compressed_waveforms else None)
+        opt.waveform_decompression_method if opt.use_compressed_waveforms else None,
+        use_merged_correlate=opt.use_merged_correlate)
+
+
+    matched_filter = MatchedFilterControl(opt.low_frequency_cutoff, None,
+                                          opt.snr_threshold, tlen, delta_f, complex64,
+                                          segments, template_mem, use_cluster,
+                                          downsample_factor=opt.downsample_factor,
+                                          upsample_threshold=opt.upsample_threshold,
+                                          upsample_method=opt.upsample_method,
+                                          gpu_callback_method=opt.gpu_callback_method,
+                                          cluster_function=opt.cluster_function,
+                                          use_merged_correlate=opt.use_merged_correlate,
+                                          bank=bank if opt.use_merged_correlate else None)
+
 
     sg_chisq = SingleDetSGChisq.from_cli(opt, bank, opt.chisq_bins)
 
