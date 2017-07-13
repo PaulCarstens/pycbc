@@ -278,7 +278,7 @@ class MatchedFilterControl(object):
         corr = FrequencySeries(self.corr_mem, delta_f=self.delta_f, copy=False)
         return snr, norm, corr, idx, snrv
 
-  def full_matched_filter_and_cluster_symm_cor(self, segnum, template_norm, window, tnum, epoch=None):
+    def full_matched_filter_and_cluster_symm_cor(self, segnum, template_norm, window, tnum, epoch=None):
         """ Returns the complex snr timeseries, normalization of the complex snr,
         the correlation vector frequency series, the list of indices of the
         triggers, and the snr values at the trigger locations. Returns empty

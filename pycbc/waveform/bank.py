@@ -594,7 +594,7 @@ class FilterBank(TemplateBank):
                  enable_compressed_waveforms=True,
                  low_frequency_cutoff=None,
                  waveform_decompression_method=None,
-                 **kwds, use_merged_correlate=False):
+                 use_merged_correlate=False, **kwds):
         self.out = out
         self.dtype = dtype
         self.f_lower = low_frequency_cutoff
