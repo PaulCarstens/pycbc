@@ -193,14 +193,14 @@ class MatchedFilterControl(object):
                                                       self.delta_f, self.tlen)
 
             # Set up the correlation operations for each analysis segment
-            corr_slice = slice(self.kmin, self.kmax)
+            self.corr_slice = slice(self.kmin, self.kmax)
             self.correlators = []
 
                                         
             for seg in self.segments:
-                corr = Correlator(self.htilde[corr_slice],
-                                  seg[corr_slice],
-                                  self.corr_mem[corr_slice])
+                corr = Correlator(self.htilde[self.corr_slice],
+                                  seg[self.corr_slice],
+                                  self.corr_mem[self.corr_slice])
                 self.correlators.append(corr)
 
             # setup up the ifft we will do
@@ -313,7 +313,7 @@ class MatchedFilterControl(object):
             raise ValueError("FilterBank must be using merged correlate function as well")
 
         norm = (4.0 * self.delta_f) / sqrt(template_norm)
-        self.bank.get_decompressed_correlated_waveform(self.segments[segnum][corr_slice], self.corr_mem[corr_slice], tnum, df=self.delta_f, f_lower=self.flow)
+        self.bank.get_decompressed_correlated_waveform(self.segments[segnum][self.corr_slice], self.corr_mem[self.corr_slice], tnum, df=self.delta_f, f_lower=self.flow)
         self.ifft.execute()
         snrv, idx = self.threshold_and_clusterers[segnum].threshold_and_cluster(self.snr_threshold / norm, window)
         

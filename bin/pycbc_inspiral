@@ -169,7 +169,7 @@ parser.add_argument("--use-compressed-waveforms", action="store_true", default=F
                     help='Use compressed waveforms from the bank file.')
 parser.add_argument("--waveform-decompression-method", action='store', default=None,
                     help='Method to be used decompress waveforms from the bank file.')
-parser.add_argument("--use-merged-correlate", action='store', default=False,
+parser.add_argument("--use-merged-correlate", action="store_true", default=False,
                     help='Use merged correlate and decompress waveform CUDA function.')
 
 # Add options groups
@@ -351,6 +351,7 @@ with ctx:
                matched_filter.matched_filter_and_cluster(s_num,
                                                          template.sigmasq(stilde.psd),
                                                          cluster_window,
+                                                         t_num,
                                                          epoch=stilde._epoch)
 
             if not len(idx):

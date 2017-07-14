@@ -612,6 +612,12 @@ class FilterBank(TemplateBank):
             parameters=parameters, **kwds)
         self.ensure_standard_filter_columns(low_frequency_cutoff=low_frequency_cutoff)
 
+        if self.out is None:
+            self.empty_htilde = FrequencySeries(zeros(self.filter_length, dtype=self.dtype), delta_f=self.delta_f)
+        else:
+            self.empty_htilde = FrequencySeries(self.out, delta_f=self.delta_f)
+
+
     def get_decompressed_waveform(self, tempout, index, f_lower=None,
                                   approximant=None, df=None):
         """Returns a frequency domain decompressed waveform for the template
@@ -698,7 +704,7 @@ class FilterBank(TemplateBank):
             delta_f = self.delta_f
 
         # Create memory space for writing the decompressed waveform
-        decomp_scratch = FrequencySeries(out[0:self.filter_length], delta_f=delta_f, copy=False)
+        decomp_scratch = FrequencySeries(output[0:self.filter_length], delta_f=delta_f, copy=False)
 
         # Get the decompressed waveform
         output = compressed_waveform.decompress(s=s, out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method)
@@ -773,7 +779,7 @@ class FilterBank(TemplateBank):
 
         if self.use_merged_correlate:
             if self.has_compressed_waveforms and self.enable_compressed_waveforms:
-                htilde = tempout
+                htilde = self.empty_htilde
                 pass
             else:
                 raise ValueError("Merged interpolate correlate function requires compressed waveform.")
