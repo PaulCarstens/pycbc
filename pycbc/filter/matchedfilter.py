@@ -307,13 +307,17 @@ class MatchedFilterControl(object):
             The snr values at the trigger locations.
         """
 
+        print "currently in matchedfilter full_matched_filter_and_cluster_symm_cor"
+
         if tnum==None:
             raise ValueError("Merged correlate function requires template index tnum")
         if not self.bank.use_merged_correlate:
             raise ValueError("FilterBank must be using merged correlate function as well")
 
         norm = (4.0 * self.delta_f) / sqrt(template_norm)
+        print "before calling self.bank"
         self.bank.get_decompressed_correlated_waveform(self.segments[segnum][self.corr_slice], self.corr_mem[self.corr_slice], tnum, df=self.delta_f, f_lower=self.flow)
+        print "after calling self.bank"
         self.ifft.execute()
         snrv, idx = self.threshold_and_clusterers[segnum].threshold_and_cluster(self.snr_threshold / norm, window)
         

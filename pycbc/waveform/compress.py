@@ -239,7 +239,7 @@ def compress_waveform(htilde, sample_points, tolerance, interpolation,
         outdf = None
     hdecomp = fd_decompress(comp_amp, comp_phase, sample_points,
                             out=decomp_scratch, df=outdf, f_lower=fmin,
-                            interpolation=interpolation)
+                            interpolation=interpolation, use_merged_correlate=False)
     kmax = min(len(htilde), len(hdecomp))
     htilde = htilde[:kmax]
     hdecomp = hdecomp[:kmax]
@@ -284,7 +284,7 @@ def compress_waveform(htilde, sample_points, tolerance, interpolation,
         # update the vecdiffs and mismatch
         hdecomp = fd_decompress(comp_amp, comp_phase, sample_points,
                                 out=decomp_scratch, df=outdf,
-                                f_lower=fmin, interpolation=interpolation)
+                                f_lower=fmin, interpolation=interpolation, use_merged_correlate=False)
         hdecomp = hdecomp[:kmax]
         new_vecdiffs = numpy.zeros(vecdiffs.size+1)
         new_vecdiffs[:minpt] = vecdiffs[:minpt]
@@ -333,7 +333,7 @@ def inline_linear_interp_cor(amp, phase, sample_frequencies, s, output,
 
 
 def fd_decompress(amp, phase, sample_frequencies, s=None, out=None, df=None,
-                  f_lower=None, interpolation='inline_linear'):
+                  f_lower=None, interpolation='inline_linear', use_merged_correlate=False):
     """Decompresses an FD waveform using the given amplitude, phase, and the
     frequencies at which they are sampled at.
 
@@ -398,15 +398,21 @@ def fd_decompress(amp, phase, sample_frequencies, s=None, out=None, df=None,
     if start_index >= hlen:
         raise ValueError('requested f_lower >= largest frequency in out')
     # interpolate the amplitude and the phase
+    
+    print "before calling interpolation"
+
     if interpolation == "inline_linear":
         # Call the scheme-dependent function
-        inline_linear_interp(amp, phase, sample_frequencies, out,
-                             df, f_lower, imin, start_index)
-    elif interpolation == "inline_linear_cor":
-        # Call the scheme-dependent function                                                         
-        inline_linear_interp_cor(amp, phase, sample_frequencies, s, out,
-                             df, f_lower, imin, start_index)
-        
+        if use_merged_correlate:
+            print "going to use merged interp"
+            inline_linear_interp_cor(amp, phase, sample_frequencies, s, out,
+                                     df, f_lower, imin, start_index)
+            print "using merged interpolation"
+        else:
+            print "not using merged function"
+            inline_linear_interp(amp, phase, sample_frequencies, out,
+                                 df, f_lower, imin, start_index)
+            
 
 
     else:
@@ -428,6 +434,7 @@ def fd_decompress(amp, phase, sample_frequencies, s=None, out=None, df=None,
         A = amp_interp(outfreq)
         phi = phase_interp(outfreq)
         out.data[:] = A*numpy.cos(phi) + (1j)*A*numpy.sin(phi)
+    print "returning"
     return out
 
 
@@ -576,7 +583,7 @@ class CompressedWaveform(object):
         """Clear self's cache of amplitude, phase, and sample_points."""
         self._cache.clear()
 
-    def decompress(self, s=None, out=None, df=None, f_lower=None, interpolation=None):
+    def decompress(self, s=None, out=None, df=None, f_lower=None, interpolation=None, use_merged_correlate=False):
         """Decompress self.
 
         Parameters
@@ -601,14 +608,18 @@ class CompressedWaveform(object):
         FrequencySeries
             The decompressed waveform.
         """
+        print "started decompress"
+
         if f_lower is None:
             # use the minimum of the samlpe points
             f_lower = self.sample_points.min()
         if interpolation is None:
             interpolation = self.interpolation
+
+        print "to fd_decompress"
         return fd_decompress(self.amplitude, self.phase, self.sample_points,
                              s=s, out=out, df=df, f_lower=f_lower,
-                             interpolation=interpolation)
+                             interpolation=interpolation, use_merged_correlate=use_merged_correlate)
 
     def write_to_hdf(self, fp, template_hash, root=None, precision=None):
         """Write the compressed waveform to the given hdf file handler.

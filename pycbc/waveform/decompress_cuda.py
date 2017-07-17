@@ -464,6 +464,8 @@ def inline_linear_interp_cor(amps, phases, freqs, s, output, df, flow, imin=None
     # Note that imin and start_index are ignored in the GPU code; they are only
     # needed for CPU.
 
+    print "calling inline_linear_interp_cor"
+
     if output.precision == 'double':
         raise NotImplementedError("Double precision linear interpolation not currently supported on CUDA scheme")
     flow = numpy.float32(flow)
@@ -484,7 +486,20 @@ def inline_linear_interp_cor(amps, phases, freqs, s, output, df, flow, imin=None
     g_out = output.data.gpudata
     lower = zeros(nb, dtype=numpy.int32).data.gpudata
     upper = zeros(nb, dtype=numpy.int32).data.gpudata
+
+    print "things initialized"
+
     fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
+
+    print "used function 1"
+
     fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_s)
+    
+    print "used function 3"
+
+    print g_out
+
     pycbc.scheme.mgr.state.context.synchronize()
+
+    print "returning"
     return output

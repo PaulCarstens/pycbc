@@ -616,6 +616,7 @@ class FilterBank(TemplateBank):
             self.empty_htilde = FrequencySeries(zeros(self.filter_length, dtype=self.dtype), delta_f=self.delta_f)
         else:
             self.empty_htilde = FrequencySeries(self.out, delta_f=self.delta_f)
+        print "test test test!!!!"
 
 
     def get_decompressed_waveform(self, tempout, index, f_lower=None,
@@ -625,6 +626,8 @@ class FilterBank(TemplateBank):
         decompressed waveform is obtained by interpolating in frequency space,
         the amplitude and phase points for the compressed template that are
         read in from the bank."""
+
+        print "using 'get_decompressed_waveform'"
 
         from pycbc.waveform.waveform import props
         from pycbc.waveform import get_waveform_filter_length_in_time
@@ -674,6 +677,9 @@ class FilterBank(TemplateBank):
         the amplitude and phase points for the compressed template that are
         read in from the bank."""
 
+        print "using 'get_decompressed_correlate_waveform'"
+
+
         if not s:
             raise ValueError("Merged decompress correlate function requires a waveform to correlate htilde with")
         if not output:
@@ -683,6 +689,8 @@ class FilterBank(TemplateBank):
         from pycbc.waveform.waveform import props
         from pycbc.waveform import get_waveform_filter_length_in_time
 
+        print "1"
+
         # Get the template hash corresponding to the template index taken in as argument
         tmplt_hash = self.table.template_hash[index]
 
@@ -691,11 +699,15 @@ class FilterBank(TemplateBank):
                                 self.filehandler, tmplt_hash,
                                 load_now=True)
 
+        print "2"
+
         # Get the interpolation method to be used to decompress the waveform
         if self.waveform_decompression_method is not None :
             decompression_method = self.waveform_decompression_method
+            print "a"
         else :
             decompression_method = compressed_waveform.interpolation
+            print "b"
         logging.info("Decompressing waveform using %s", decompression_method)
 
         if df is not None :
@@ -703,11 +715,16 @@ class FilterBank(TemplateBank):
         else :
             delta_f = self.delta_f
 
+        print "3"
+
         # Create memory space for writing the decompressed waveform
         decomp_scratch = FrequencySeries(output[0:self.filter_length], delta_f=delta_f, copy=False)
 
         # Get the decompressed waveform
-        output = compressed_waveform.decompress(s=s, out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method)
+        output = compressed_waveform.decompress(s=s, out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method, use_merged_correlate=True)
+
+        print "decompressed"
+
         p = props(self.table[index])
         p.pop('approximant')
         try:
