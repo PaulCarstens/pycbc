@@ -149,7 +149,7 @@ __global__ void find_block_indices(int *lower, int *upper, int texlen,
 
 __global__ void linear_interp(float2 *h, float df, int hlen,
                               float flow, float fmax, int texlen,
-                              int *lower, int *upper){
+                              int *lower, int *upper, float2 *s){
 
     /*
 
@@ -255,7 +255,7 @@ __global__ void linear_interp(float2 *h, float df, int hlen,
 
 __global__ void linear_interp_correlate(float2 *sh, float df, int hlen,            
                               float flow, float fmax, int texlen,                  
-                              int *lower, int *upper, float2 *s){                  
+                              int *lower, int *upper){                  
     /*                                                                             
       Input parameters:                                                            
       =================                                                            
@@ -287,9 +287,8 @@ __global__ void linear_interp_correlate(float2 *sh, float df, int hlen,
     */                                                                             
     __shared__ int low[1];                                                         
     __shared__ int high[1];                                                        
-    int idx;                                                                       
-    float2 tmp;                                                                    
-    //float tmp;                                                                   
+    int idx;                                                                                                                 
+    float2 tmp;                                                                  
     float amp, freq, phase, inv_df, x, y;                                          
     float a0, a1, f0, f1, p0, p1;                                                  
     // Load values in global memory into shared memory that                        
@@ -303,7 +302,6 @@ __global__ void linear_interp_correlate(float2 *sh, float df, int hlen,
     if (i < hlen){                                                                 
         freq = df*i;                                                               
         if ( (freq<flow) || (freq>fmax) ){                                         
-          //tmp = 0.0;                                                             
           tmp.x = 0.0;                                                             
           tmp.y = 0.0;                                                             
         } else {                                                                   
@@ -325,11 +323,10 @@ __global__ void linear_interp_correlate(float2 *sh, float df, int hlen,
              phase = tex1Dfetch(phase_tex, idx);                                   
           }                                                                        
           __sincosf(phase, &y, &x);                                                
-          tmp.x = amp*x*s[i].x + amp*y*s[i].y;                                     
-          tmp.y = amp*x*s[i].y - amp*y*s[i].x;                                     
-          //tmp = amp;                                                             
-          //tmp.x = s[i].x;                                                        
-          //tmp.y = s[i].y;                                                        
+          //tmp.x = amp*x*s[i].x + amp*y*s[i].y;                                     
+          //tmp.y = amp*x*s[i].y - amp*y*s[i].x;                                         
+          tmp.x = amp*x;                                                        
+          tmp.y = amp*y;                                                        
                                                                                    
         }                                                                          
        sh[i] = tmp;                                                                
@@ -359,11 +356,11 @@ def get_dckernel(slen):
         fn2 = mod.get_function("linear_interp")
         fn2.prepare("PfiffiPP", texrefs=[freq_tex, amp_tex, phase_tex])
         fn3 = mod.get_function("linear_interp_correlate")
-        fn3.prepare("PfiffiPPP", texrefs=[freq_tex, amp_tex, phase_tex])
+        fn3.prepare("PfiffiPP", texrefs=[freq_tex, amp_tex, phase_tex])
         dckernel_cache[nb] = (fn1, fn2, fn3, freq_tex, amp_tex, phase_tex, nt, nb)
         return dckernel_cache[nb]
     
-    
+
 class CUDALinearInterpolate(object):
     def __init__(self, output):
         self.output = output.data.gpudata
@@ -455,7 +452,8 @@ class CUDALinearInterpolateCorrelate(object):
         fn1 = self.fn1.prepared_call
         fn3 = self.fn3.prepared_call
         fn1((1, 1), (self.nb, 1, 1), self.lower, self.upper, texlen, self.df, flow, fmax)
-        fn3((self.nb, 1), (self.nt, 1, 1), self.output, self.df, self.hlen, flow, fmax, texlen, self.lower, self.upper, self.s)
+        #fn3((self.nb, 1), (self.nt, 1, 1), self.output, self.df, self.hlen, flow, fmax, texlen, self.lower, self.upper, self.s)
+        fn3((self.nb, 1), (self.nt, 1, 1), self.output, self.df, self.hlen, flow, fmax, texlen, self.lower, self.upper)
         pycbc.scheme.mgr.state.context.synchronize()
         return
 
@@ -487,19 +485,19 @@ def inline_linear_interp_cor(amps, phases, freqs, s, output, df, flow, imin=None
     lower = zeros(nb, dtype=numpy.int32).data.gpudata
     upper = zeros(nb, dtype=numpy.int32).data.gpudata
 
-    print "things initialized"
+    print hlen, numpy.int32(len(s))
 
     fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
 
     print "used function 1"
 
-    fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_s)
-    
+    #fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_s)
+    fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper)
     print "used function 3"
 
     print g_out
 
-    pycbc.scheme.mgr.state.context.synchronize()
+    #pycbc.scheme.mgr.state.context.synchronize()
 
     print "returning"
     return output
