@@ -239,7 +239,7 @@ def compress_waveform(htilde, sample_points, tolerance, interpolation,
         outdf = None
     hdecomp = fd_decompress(comp_amp, comp_phase, sample_points,
                             out=decomp_scratch, df=outdf, f_lower=fmin,
-                            interpolation=interpolation)
+                            s=None, fused_function=False, interpolation=interpolation)
     kmax = min(len(htilde), len(hdecomp))
     htilde = htilde[:kmax]
     hdecomp = hdecomp[:kmax]
@@ -284,7 +284,8 @@ def compress_waveform(htilde, sample_points, tolerance, interpolation,
         # update the vecdiffs and mismatch
         hdecomp = fd_decompress(comp_amp, comp_phase, sample_points,
                                 out=decomp_scratch, df=outdf,
-                                f_lower=fmin, interpolation=interpolation)
+                                f_lower=fmin, s=None, fused_function=False, 
+                                interpolation=interpolation)
         hdecomp = hdecomp[:kmax]
         new_vecdiffs = numpy.zeros(vecdiffs.size+1)
         new_vecdiffs[:minpt] = vecdiffs[:minpt]
@@ -323,11 +324,12 @@ _real_dtypes = {
 
 @schemed("pycbc.waveform.decompress_")
 def inline_linear_interp(amp, phase, sample_frequencies, output,
-                         df, f_lower, imin, start_index):
+                         df, f_lower, s=None, fused_function=False, imin=None, start_index=None):
     return
 
+
 def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
-                  f_lower=None, interpolation='inline_linear'):
+                  f_lower=None, s=None, fused_function=False, interpolation='inline_linear'):
     """Decompresses an FD waveform using the given amplitude, phase, and the
     frequencies at which they are sampled at.
 
@@ -393,9 +395,11 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
         raise ValueError('requested f_lower >= largest frequency in out')
     # interpolate the amplitude and the phase
     if interpolation == "inline_linear":
+        if fused_function and s is None:
+            raise ValueError("Fused interpolate and correlate function requires template s to be passed as an argument")
         # Call the scheme-dependent function
         inline_linear_interp(amp, phase, sample_frequencies, out,
-                             df, f_lower, imin, start_index)
+                             df, f_lower, s, fused_function imin, start_index)
     else:
         # use scipy for fancier interpolation
         sample_frequencies = numpy.array(sample_frequencies)
@@ -595,7 +599,7 @@ class CompressedWaveform(object):
             interpolation = self.interpolation
         return fd_decompress(self.amplitude, self.phase, self.sample_points,
                              out=out, df=df, f_lower=f_lower,
-                             interpolation=interpolation)
+                             s=None, fused_function=False, interpolation=interpolation)
 
     def write_to_hdf(self, fp, template_hash, root=None, precision=None):
         """Write the compressed waveform to the given hdf file handler.

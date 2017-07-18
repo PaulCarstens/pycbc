@@ -594,6 +594,7 @@ class FilterBank(TemplateBank):
                  enable_compressed_waveforms=True,
                  low_frequency_cutoff=None,
                  waveform_decompression_method=None,
+                 fused_function=False,
                  **kwds):
         self.out = out
         self.dtype = dtype
@@ -606,12 +607,19 @@ class FilterBank(TemplateBank):
         self.max_template_length = max_template_length
         self.enable_compressed_waveforms = enable_compressed_waveforms
         self.waveform_decompression_method = waveform_decompression_method
+        self.fused_function = fused_function
+
+        if self.out is None:
+            self.empty_htilde = FrequencySeries(zeros(self.filter_length, dtype=self.dtype), delta_f=self.delta_f)
+        else:
+            self.empty_htilde = FrequencySeries(self.out, delta_f=self.delta_f)
 
         super(FilterBank, self).__init__(filename, approximant=approximant,
             parameters=parameters, **kwds)
         self.ensure_standard_filter_columns(low_frequency_cutoff=low_frequency_cutoff)
 
     def get_decompressed_waveform(self, tempout, index, f_lower=None,
+                                  s=None, fused_function=False, 
                                   approximant=None, df=None):
         """Returns a frequency domain decompressed waveform for the template
         in the bank corresponding to the index taken in as an argument. The
@@ -642,11 +650,20 @@ class FilterBank(TemplateBank):
         else :
             delta_f = self.delta_f
 
+        if use_fused_function is not None :
+            fused_function = use_fused_function
+        else :
+            fused_function = self.fused_function
+
         # Create memory space for writing the decompressed waveform
         decomp_scratch = FrequencySeries(tempout[0:self.filter_length], delta_f=delta_f, copy=False)
 
         # Get the decompressed waveform
-        hdecomp = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower, interpolation=decompression_method)
+        if fused_function and s is None:
+            raise ValueError("Fused function requires waveform s to be correlated")
+        hdecomp = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower, 
+                                                 s=s, fused_function=fused_function, 
+                                                 interpolation=decompression_method)
         p = props(self.table[index])
         p.pop('approximant')
         try:
@@ -711,21 +728,29 @@ class FilterBank(TemplateBank):
             f_low = self.f_lower
         logging.info('%s: generating %s from %s Hz' % (index, approximant, f_low))
 
-        # Clear the storage memory
-        poke  = tempout.data # pylint:disable=unused-variable
-        tempout.clear()
+        if self.fused_function:
+            if self.has_compressed_waveforms and self.enable_compressed_waveforms:
+                htilde = self.empty_htilde
+                pass
+            else:
+                raise ValueError("Fused interpolate correlate function requires compressed waveform.")
+        else:
 
-        # Get the waveform filter
-        distance = 1.0 / DYN_RANGE_FAC
-        if self.has_compressed_waveforms and self.enable_compressed_waveforms:
-            htilde = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
-                                                    approximant=approximant, df=None)
-        else :
-            htilde = pycbc.waveform.get_waveform_filter(
-                tempout[0:self.filter_length], self.table[index],
-                approximant=approximant, f_lower=f_low, f_final=f_end,
-                delta_f=self.delta_f, delta_t=self.delta_t, distance=distance,
-                **self.extra_args)
+            # Clear the storage memory
+            poke  = tempout.data # pylint:disable=unused-variable
+            tempout.clear()
+
+            # Get the waveform filter
+            distance = 1.0 / DYN_RANGE_FAC
+            if self.has_compressed_waveforms and self.enable_compressed_waveforms:
+                htilde = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
+                                                        approximant=approximant, df=None)
+            else :
+                htilde = pycbc.waveform.get_waveform_filter(
+                    tempout[0:self.filter_length], self.table[index],
+                    approximant=approximant, f_lower=f_low, f_final=f_end,
+                    delta_f=self.delta_f, delta_t=self.delta_t, distance=distance,
+                    **self.extra_args)
 
         # If available, record the total duration (which may
         # include ringdown) and the duration up to merger since they will be
