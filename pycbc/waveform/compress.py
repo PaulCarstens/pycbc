@@ -399,7 +399,7 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
             raise ValueError("Fused interpolate and correlate function requires template s to be passed as an argument")
         # Call the scheme-dependent function
         inline_linear_interp(amp, phase, sample_frequencies, out,
-                             df, f_lower, s, fused_function imin, start_index)
+                             df, f_lower, s, fused_function, imin, start_index)
     else:
         # use scipy for fancier interpolation
         sample_frequencies = numpy.array(sample_frequencies)
@@ -567,7 +567,7 @@ class CompressedWaveform(object):
         """Clear self's cache of amplitude, phase, and sample_points."""
         self._cache.clear()
 
-    def decompress(self, out=None, df=None, f_lower=None, interpolation=None):
+    def decompress(self, out=None, df=None, f_lower=None, s=None, fused_function=False, interpolation=None):
         """Decompress self.
 
         Parameters

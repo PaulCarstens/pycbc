@@ -392,7 +392,7 @@ class CUDALinearInterpolate(object):
         pycbc.scheme.mgr.state.context.synchronize()
         return
 
-def inline_linear_interp(amps, phases, freqs, output, df, flow, s=None, imin=None, start_index=None):
+def inline_linear_interp(amps, phases, freqs, output, df, flow, s=None, fused_function=False, imin=None, start_index=None):
     # Note that imin and start_index are ignored in the GPU code; they are only
     # needed for CPU.
     if output.precision == 'double':

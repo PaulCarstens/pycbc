@@ -650,8 +650,8 @@ class FilterBank(TemplateBank):
         else :
             delta_f = self.delta_f
 
-        if use_fused_function is not None :
-            fused_function = use_fused_function
+        if fused_function is not None :
+            fused_function = fused_function
         else :
             fused_function = self.fused_function
 

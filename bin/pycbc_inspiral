@@ -298,7 +298,7 @@ with ctx:
                                           gpu_callback_method=opt.gpu_callback_method,
                                           cluster_function=opt.cluster_function,
                                           fused_function=opt.fused_function,
-                                          bank=bank if fused_function else None)
+                                          bank=bank if opt.fused_function else None)
 
     sg_chisq = SingleDetSGChisq.from_cli(opt, bank, opt.chisq_bins)
 
