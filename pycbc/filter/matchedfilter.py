@@ -173,7 +173,10 @@ class MatchedFilterControl(object):
             self.corr_mem = zeros(self.tlen, dtype=self.dtype)
 
             if use_cluster and (cluster_function == 'symmetric'):
-                self.matched_filter_and_cluster = self.full_matched_filter_and_cluster_symm
+                if fused_function:
+                    self.matched_filter_and_cluster = self.full_matched_filter_and_cluster_symm_cor
+                else:
+                    self.matched_filter_and_cluster = self.full_matched_filter_and_cluster_symm
                 # setup the threasholding/clustering operations for each segment
                 self.threshold_and_clusterers = []
                 for seg in self.segments:
@@ -190,12 +193,12 @@ class MatchedFilterControl(object):
                                                       self.delta_f, self.tlen)
 
             # Set up the correlation operations for each analysis segment
-            corr_slice = slice(self.kmin, self.kmax)
+            self.corr_slice = slice(self.kmin, self.kmax)
             self.correlators = []
             for seg in self.segments:
-                corr = Correlator(self.htilde[corr_slice],
-                                  seg[corr_slice],
-                                  self.corr_mem[corr_slice])
+                corr = Correlator(self.htilde[self.corr_slice],
+                                  seg[self.corr_slice],
+                                  self.corr_mem[self.corr_slice])
                 self.correlators.append(corr)
 
             # setup up the ifft we will do

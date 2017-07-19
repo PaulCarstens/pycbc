@@ -349,6 +349,7 @@ with ctx:
                matched_filter.matched_filter_and_cluster(s_num,
                                                          template.sigmasq(stilde.psd),
                                                          cluster_window,
+                                                         tnum=t_num if opt.fused_function else None,
                                                          epoch=stilde._epoch)
 
             if not len(idx):
