@@ -316,8 +316,10 @@ __global__ void linear_interp_cor(float2 *h, float df, int hlen,
              phase = tex1Dfetch(phase_tex, idx);
           }
           __sincosf(phase, &y, &x);
-          tmp.x = amp*x*s[i].x + amp*y*s[i].y;                                     
-          tmp.y = amp*x*s[i].y - amp*y*s[i].x; 
+          //tmp.x = amp*x*s[i].x + amp*y*s[i].y;                                     
+          //tmp.y = amp*x*s[i].y - amp*y*s[i].x; 
+          tmp.x = amp*x;
+          tmp.y = amp*y;
         }
 
        h[i] = tmp;
@@ -395,6 +397,8 @@ class CUDALinearInterpolate(object):
 def inline_linear_interp(amps, phases, freqs, output, df, flow, s=None, fused_function=False, imin=None, start_index=None):
     # Note that imin and start_index are ignored in the GPU code; they are only
     # needed for CPU.
+    print fused_function
+
     if output.precision == 'double':
         raise NotImplementedError("Double precision linear interpolation not currently supported on CUDA scheme")
     flow = numpy.float32(flow)
@@ -415,12 +419,16 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, s=None, fused_fu
     upper = zeros(nb, dtype=numpy.int32).data.gpudata
     fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
     if fused_function:
-        fn3 = fn3.prepared_call
+        fn3 = fn2.prepared_call
         g_s = s.data.gpudata
-        fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_s)
+        fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper)
+        print "using fn3"
     else:
         fn2 = fn2.prepared_call
         fn2((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper)
+        print "using fn2"
+    print "before synch"
     pycbc.scheme.mgr.state.context.synchronize()
+    print "after synch"
     return output
 

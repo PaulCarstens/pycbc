@@ -364,6 +364,8 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
         If out was provided, writes to that array. Otherwise, a new
         FrequencySeries with the decompressed waveform.
     """
+    print fused_function
+
     precision = _precision_map[sample_frequencies.dtype.name]
     if _precision_map[amp.dtype.name] != precision or \
             _precision_map[phase.dtype.name] != precision:
@@ -398,8 +400,10 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
         if fused_function and s is None:
             raise ValueError("Fused interpolate and correlate function requires template s to be passed as an argument")
         # Call the scheme-dependent function
+        print "before calling inline_linear_interp"
         inline_linear_interp(amp, phase, sample_frequencies, out,
                              df, f_lower, s, fused_function, imin, start_index)
+        print "after calling inline_linear_interp"
     else:
         # use scipy for fancier interpolation
         sample_frequencies = numpy.array(sample_frequencies)
@@ -592,14 +596,19 @@ class CompressedWaveform(object):
         FrequencySeries
             The decompressed waveform.
         """
+        print fused_function
+
         if f_lower is None:
             # use the minimum of the samlpe points
             f_lower = self.sample_points.min()
         if interpolation is None:
             interpolation = self.interpolation
-        return fd_decompress(self.amplitude, self.phase, self.sample_points,
+        print "before calling fd_decompress"
+        temp = fd_decompress(self.amplitude, self.phase, self.sample_points,
                              out=out, df=df, f_lower=f_lower,
-                             s=None, fused_function=False, interpolation=interpolation)
+                             s=s, fused_function=fused_function, interpolation=interpolation)
+        print "after calling fd_decompress"
+        return temp
 
     def write_to_hdf(self, fp, template_hash, root=None, precision=None):
         """Write the compressed waveform to the given hdf file handler.

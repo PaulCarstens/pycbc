@@ -661,9 +661,11 @@ class FilterBank(TemplateBank):
         # Get the decompressed waveform
         if fused_function and s is None:
             raise ValueError("Fused function requires waveform s to be correlated")
+        print "before calling .decompress"
         hdecomp = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower, 
                                                  s=s, fused_function=fused_function, 
                                                  interpolation=decompression_method)
+        print "after calling .decompress"
         p = props(self.table[index])
         p.pop('approximant')
         try:

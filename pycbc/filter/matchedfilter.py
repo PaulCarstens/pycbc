@@ -312,8 +312,10 @@ class MatchedFilterControl(object):
 
         norm = (4.0 * self.delta_f) / sqrt(template_norm)
         tempout = zeros(self.flen, dtype=self.dtype)
+        print "before calling get_decompressed_waveform"
         self.corr_mem[self.corr_slice] = self.bank.get_decompressed_waveform(tempout, index=tnum, df=self.delta_f, f_lower=self.flow, 
-                                                                             s=self.segments[segnum][self.corr_slice])
+                                                                             s=self.segments[segnum][self.corr_slice], fused_function=True)
+        print "after calling get_decompressed_waveform"
         self.ifft.execute()
         snrv, idx = self.threshold_and_clusterers[segnum].threshold_and_cluster(self.snr_threshold / norm, window)
         
