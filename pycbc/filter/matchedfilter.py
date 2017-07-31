@@ -196,9 +196,9 @@ class MatchedFilterControl(object):
             self.corr_slice = slice(self.kmin, self.kmax)
             self.correlators = []
             for seg in self.segments:
-                print "htilde pointer:", self.htilde[self.corr_slice].ptr, "htilde length:", len(self.htilde[self.corr_slice])
-                print "seg pointer:", seg[self.corr_slice].ptr, "seg length:", len(seg[self.corr_slice])
-                print "output pointer:", self.corr_mem[self.corr_slice].ptr, "output length:", len(self.corr_mem[self.corr_slice])
+                #print "htilde pointer:", self.htilde[self.corr_slice].ptr, "htilde length:", len(self.htilde[self.corr_slice])
+                #print "seg pointer:", seg[self.corr_slice].ptr, "seg length:", len(seg[self.corr_slice])
+                #print "output pointer:", self.corr_mem[self.corr_slice].ptr, "output length:", len(self.corr_mem[self.corr_slice])
                 corr = Correlator(self.htilde[self.corr_slice],
                                   seg[self.corr_slice],
                                   self.corr_mem[self.corr_slice])
@@ -314,14 +314,13 @@ class MatchedFilterControl(object):
             raise ValueError("FilterBank must be using fused interpolate and correlate function as well")
 
         norm = (4.0 * self.delta_f) / sqrt(template_norm)
-        tempout = zeros(len(self.corr_mem[self.corr_slice]), dtype=self.dtype)
+        tempout = zeros(len(self.corr_mem), dtype=self.dtype)
         print "before calling get_decompressed_waveform"
 
-        print len(self.corr_mem), len(self.corr_mem[self.corr_slice]), type(self.corr_mem[self.corr_slice])
-        print len(tempout), type(tempout)
+        print "length of corr_mem: {0}, length of slice: {1}, length of tempout: {2}".format(len(self.corr_mem), len(self.corr_mem[self.corr_slice]), len(tempout))
 
-        self.corr_mem[self.corr_slice] = self.bank.get_decompressed_waveform(tempout, index=tnum, df=self.delta_f, f_lower=self.flow, 
-                                                                             s=self.segments[segnum][self.corr_slice], fused_function=True)
+        self.corr_mem[0:self.flen] = self.bank.get_decompressed_waveform(tempout, index=tnum, df=self.delta_f, f_lower=self.flow, 
+                                                                             s=self.segments[segnum], fused_function=True)
         print "after calling get_decompressed_waveform"
         self.ifft.execute()
         snrv, idx = self.threshold_and_clusterers[segnum].threshold_and_cluster(self.snr_threshold / norm, window)
@@ -333,6 +332,7 @@ class MatchedFilterControl(object):
 
         snr = TimeSeries(self.snr_mem, epoch=epoch, delta_t=self.delta_t, copy=False)
         corr = FrequencySeries(self.corr_mem, delta_f=self.delta_f, copy=False)
+        print "length of corr: {0}".format(len(corr))
         return snr, norm, corr, idx, snrv
 
     def full_matched_filter_and_cluster_fc(self, segnum, template_norm, window, tnum=None, epoch=None):

@@ -303,7 +303,7 @@ __global__ void linear_interp_cor(float2 *h, float df, int hlen,
     // Load values in global memory into shared memory that
     // all threads in this block will use:
 
-    /*
+    
 
     if (threadIdx.x == 0) {
         low[0] = lower[blockIdx.x];
@@ -311,10 +311,10 @@ __global__ void linear_interp_cor(float2 *h, float df, int hlen,
     }
     __syncthreads();
 
-    */
+    
 
     int i = ${ntpb}*blockIdx.x + threadIdx.x;
-
+    
     if (i < hlen){
 
         freq = df*i;
@@ -350,11 +350,21 @@ __global__ void linear_interp_cor(float2 *h, float df, int hlen,
        h[i] = tmp;
     }
     
+
+
     /*
-    int i = ${ntpb}*blockIdx.x + threadIdx.x; 
+    float freq;
+    int i = ${ntpb}*blockIdx.x + threadIdx.x;
     if(i < hlen) {
-        h[i].x=1;
-        h[i].y=0;
+        freq = df*i;
+        if ( (freq<flow) || (freq>fmax) ){
+          h[i].x = 0.0;  
+          h[i].y = 0.0;
+        } 
+        else {
+          h[i].x=1;
+          h[i].y=0;
+        }
     }
     */
 
@@ -457,7 +467,7 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start
 
 
     #print "amps:", len(amps), type(amps)
-    #print "output:", len(output), type(output)
+    print "output:", len(output), type(output)
     #print "df:", df, type(df)
     #print "hlen:", hlen, type(hlen)
     #print "flow:", flow, type(flow)
@@ -466,6 +476,7 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start
     #print "lower:", lower, type(lower)
     #print "upper:", upper, type(upper)
 
+    print "FLOW: {0}, FMAX: {1}".format(flow, fmax)
 
     if fused_function:
         fn1 = fn1.prepared_call
@@ -479,7 +490,7 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start
         g_s = s.data.gpudata
         fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
         fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_s)
-        #print "using fn3"
+        print "using fn3"
         #print "using fn3: {0}; fn2 is {1}".format(fn3, fn2)
     else:
         fn1 = fn1.prepared_call
@@ -489,7 +500,7 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start
         fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
         fn2((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper)
         #fn2((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_ampinterp, g_phaseinterp)
-        #print "using fn2"
+        print "using fn2"
     #print "before synch"
     pycbc.scheme.mgr.state.context.synchronize()
     #print "after synch"
