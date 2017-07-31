@@ -596,6 +596,15 @@ class FilterBank(TemplateBank):
                  waveform_decompression_method=None,
                  fused_function=False,
                  **kwds):
+    #def __init__(self, filename, filter_length, delta_f, dtype,
+    #             out=None, max_template_length=None,
+    #             approximant=None, parameters=None,
+    #             enable_compressed_waveforms=True,
+    #             low_frequency_cutoff=None,
+    #             waveform_decompression_method=None,
+    #             fused_function=False,
+    #             ampinterp=None, phaseinterp=None,
+    #             **kwds):
         self.out = out
         self.dtype = dtype
         self.f_lower = low_frequency_cutoff
@@ -608,6 +617,8 @@ class FilterBank(TemplateBank):
         self.enable_compressed_waveforms = enable_compressed_waveforms
         self.waveform_decompression_method = waveform_decompression_method
         self.fused_function = fused_function
+        #self.ampinterp=ampinterp
+        #self.phaseinterp=phaseinterp
 
         if self.out is None:
             self.empty_htilde = FrequencySeries(zeros(self.filter_length, dtype=self.dtype), delta_f=self.delta_f)
@@ -618,15 +629,18 @@ class FilterBank(TemplateBank):
             parameters=parameters, **kwds)
         self.ensure_standard_filter_columns(low_frequency_cutoff=low_frequency_cutoff)
 
+    #def get_decompressed_waveform(self, tempout, index, f_lower=None,
+    #                              s=None, fused_function=False, 
+    #                              approximant=None, df=None,
+    #                              ampinterp=None, phaseinterp=None):
     def get_decompressed_waveform(self, tempout, index, f_lower=None,
-                                  s=None, fused_function=False, 
+                                  s=None, fused_function=False,
                                   approximant=None, df=None):
         """Returns a frequency domain decompressed waveform for the template
         in the bank corresponding to the index taken in as an argument. The
         decompressed waveform is obtained by interpolating in frequency space,
         the amplitude and phase points for the compressed template that are
         read in from the bank."""
-
         from pycbc.waveform.waveform import props
         from pycbc.waveform import get_waveform_filter_length_in_time
 
@@ -654,18 +668,27 @@ class FilterBank(TemplateBank):
             fused_function = fused_function
         else :
             fused_function = self.fused_function
+        
+
 
         # Create memory space for writing the decompressed waveform
         decomp_scratch = FrequencySeries(tempout[0:self.filter_length], delta_f=delta_f, copy=False)
+        print "tempout pointer:", tempout.ptr, "tempout len:", len(tempout)
+        print "decompscratch pointer:", decomp_scratch.ptr, "decompscratch len:", len(decomp_scratch)
 
         # Get the decompressed waveform
         if fused_function and s is None:
             raise ValueError("Fused function requires waveform s to be correlated")
         print "before calling .decompress"
-        hdecomp = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower, 
-                                                 s=s, fused_function=fused_function, 
+        hdecomp = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower,
+                                                 s=s, fused_function=fused_function,
                                                  interpolation=decompression_method)
+        #hdecomp, A, phi = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower, 
+        #                                                                 s=s, fused_function=fused_function, 
+        #                                                                 interpolation=decompression_method,
+        #                                                                 ampinterp=ampinterp, phaseinterp=phaseinterp)
         print "after calling .decompress"
+        print "hdecomp pointer:", hdecomp.ptr, "hdecomp len:", len(hdecomp)
         p = props(self.table[index])
         p.pop('approximant')
         try:
@@ -676,6 +699,8 @@ class FilterBank(TemplateBank):
             tmpltdur = get_waveform_filter_length_in_time(approximant, **p)
         hdecomp.chirp_length = tmpltdur
         hdecomp.length_in_time = hdecomp.chirp_length
+        print "returning hdecomp"
+        #return hdecomp, A, phi
         return hdecomp
 
     def generate_with_delta_f_and_max_freq(self, t_num, max_freq, delta_f,
@@ -745,8 +770,12 @@ class FilterBank(TemplateBank):
             # Get the waveform filter
             distance = 1.0 / DYN_RANGE_FAC
             if self.has_compressed_waveforms and self.enable_compressed_waveforms:
+                print "tempout pointer", tempout.ptr, "tempout len:", len(tempout)
                 htilde = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
                                                         approximant=approximant, df=None)
+                #htilde, amps, phases = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
+                #                                                      approximant=approximant, df=None,
+                #                                                      ampinterp=self.ampinterp, phaseinterp=self.phaseinterp)
             else :
                 htilde = pycbc.waveform.get_waveform_filter(
                     tempout[0:self.filter_length], self.table[index],
@@ -764,7 +793,7 @@ class FilterBank(TemplateBank):
                 template_duration = htilde.chirp_length
 
         self.table[index].template_duration = template_duration
-
+        print "assigning htilde attributes"
         htilde = htilde.astype(self.dtype)
         htilde.f_lower = f_low
         htilde.min_f_lower = self.min_f_lower
@@ -778,6 +807,8 @@ class FilterBank(TemplateBank):
         # Add sigmasq as a method of this instance
         htilde.sigmasq = types.MethodType(sigma_cached, htilde)
         htilde._sigmasq = {}
+        print "returning htilde"
+        #return htilde, amps, phases
         return htilde
 
 def find_variable_start_frequency(approximant, parameters, f_start, max_length,

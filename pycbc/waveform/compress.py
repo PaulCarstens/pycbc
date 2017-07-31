@@ -324,10 +324,17 @@ _real_dtypes = {
 
 @schemed("pycbc.waveform.decompress_")
 def inline_linear_interp(amp, phase, sample_frequencies, output,
-                         df, f_lower, s=None, fused_function=False, imin=None, start_index=None):
+                         df, f_lower, imin=None, start_index=None, s=None, fused_function=False):
     return
+#def inline_linear_interp(amp, phase, sample_frequencies, output,
+#                         df, f_lower, imin=None, start_index=None, s=None, fused_function=False,
+#                         ampinterp=None, phaseinterp=None):
+#    return
 
 
+#def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
+#                  f_lower=None, s=None, fused_function=False, interpolation='inline_linear',
+#                  ampinterp=None, phaseinterp=None):
 def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
                   f_lower=None, s=None, fused_function=False, interpolation='inline_linear'):
     """Decompresses an FD waveform using the given amplitude, phase, and the
@@ -364,8 +371,6 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
         If out was provided, writes to that array. Otherwise, a new
         FrequencySeries with the decompressed waveform.
     """
-    print fused_function
-
     precision = _precision_map[sample_frequencies.dtype.name]
     if _precision_map[amp.dtype.name] != precision or \
             _precision_map[phase.dtype.name] != precision:
@@ -401,8 +406,12 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
             raise ValueError("Fused interpolate and correlate function requires template s to be passed as an argument")
         # Call the scheme-dependent function
         print "before calling inline_linear_interp"
+        #inline_linear_interp(amp, phase, sample_frequencies, out,
+        #                     df, f_lower, imin=imin, start_index=start_index, s=s, fused_function=fused_function,
+        #                     ampinterp=ampinterp, phaseinterp=phaseinterp)
         inline_linear_interp(amp, phase, sample_frequencies, out,
-                             df, f_lower, s, fused_function, imin, start_index)
+                             df, f_lower, imin=imin, start_index=start_index, s=s, fused_function=fused_function) 
+
         print "after calling inline_linear_interp"
     else:
         # use scipy for fancier interpolation
@@ -422,9 +431,16 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
                                             assume_sorted=True)
         A = amp_interp(outfreq)
         phi = phase_interp(outfreq)
-        out.data[:] = A*numpy.cos(phi) + (1j)*A*numpy.sin(phi)
-    return out
 
+        #print "A: {0}, type of A: {1}".format(A, type(A))
+        #print "phi: {0}, type of phi: {1}".format(phi, type(phi))
+
+        #ampinterp.data[:]=A[:]
+        #phaseinterp.data[:]=phi[:]
+        out.data[:] = A*numpy.cos(phi) + (1j)*A*numpy.sin(phi)
+    
+    #return out, ampinterp, phaseinterp
+    return out
 
 class CompressedWaveform(object):
     """Class that stores information about a compressed waveform.
@@ -571,6 +587,7 @@ class CompressedWaveform(object):
         """Clear self's cache of amplitude, phase, and sample_points."""
         self._cache.clear()
 
+    #def decompress(self, out=None, df=None, f_lower=None, s=None, fused_function=False, interpolation=None, ampinterp=None, phaseinterp=None):
     def decompress(self, out=None, df=None, f_lower=None, s=None, fused_function=False, interpolation=None):
         """Decompress self.
 
@@ -596,19 +613,19 @@ class CompressedWaveform(object):
         FrequencySeries
             The decompressed waveform.
         """
-        print fused_function
-
         if f_lower is None:
             # use the minimum of the samlpe points
             f_lower = self.sample_points.min()
         if interpolation is None:
             interpolation = self.interpolation
-        print "before calling fd_decompress"
-        temp = fd_decompress(self.amplitude, self.phase, self.sample_points,
+        #return fd_decompress(self.amplitude, self.phase, self.sample_points,
+        #                     out=out, df=df, f_lower=f_lower,
+        #                     s=s, fused_function=fused_function, interpolation=interpolation,
+        #                     ampinterp=ampinterp, phaseinterp=phaseinterp)
+        return fd_decompress(self.amplitude, self.phase, self.sample_points,
                              out=out, df=df, f_lower=f_lower,
                              s=s, fused_function=fused_function, interpolation=interpolation)
-        print "after calling fd_decompress"
-        return temp
+
 
     def write_to_hdf(self, fp, template_hash, root=None, precision=None):
         """Write the compressed waveform to the given hdf file handler.

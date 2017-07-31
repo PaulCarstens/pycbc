@@ -55,6 +55,8 @@ texture<float, 1> freq_tex;
 texture<float, 1> amp_tex;
 texture<float, 1> phase_tex;
 
+#include <stdio.h>
+
 __device__ int binary_search(float freq, int lower, int upper){
 
     /*
@@ -146,9 +148,12 @@ __global__ void find_block_indices(int *lower, int *upper, int texlen,
     return;
 }
 
+//__global__ void linear_interp(float2 *h, float df, int hlen,
+//                              float flow, float fmax, int texlen,
+//                              int *lower, int *upper, float *ampinterp, float *phaseinterp){
 __global__ void linear_interp(float2 *h, float df, int hlen,
                               float flow, float fmax, int texlen,
-                              int *lower, int *upper){
+                              int *lower, int *upper){ 
     /*
       Input parameters:
       =================
@@ -176,19 +181,24 @@ __global__ void linear_interp(float2 *h, float df, int hlen,
       Output parameters:
       ==================
       h: array of complex 
-    */
+    */    
+
     __shared__ int low[1];
     __shared__ int high[1];
     int idx;
     float2 tmp;
+    //float tmpamp, tmpphase;
     float amp, freq, phase, inv_df, x, y;
     float a0, a1, f0, f1, p0, p1;
+
     // Load values in global memory into shared memory that
     // all threads in this block will use:
-    if (threadIdx.x == 0) {
+    
+    if (threadIdx.x == 0) { 
         low[0] = lower[blockIdx.x];
         high[0] = upper[blockIdx.x];
     }
+    
     __syncthreads();
     int i = ${ntpb}*blockIdx.x + threadIdx.x;
     if (i < hlen){
@@ -196,6 +206,9 @@ __global__ void linear_interp(float2 *h, float df, int hlen,
         if ( (freq<flow) || (freq>fmax) ){
           tmp.x = 0.0;
           tmp.y = 0.0;
+          //tmpamp = 0.0;
+          //tmpphase= 0.0;
+
         } else {
           idx = binary_search(freq, low[0], high[0]);
           if (idx < texlen-1) {
@@ -217,10 +230,16 @@ __global__ void linear_interp(float2 *h, float df, int hlen,
           __sincosf(phase, &y, &x);
           tmp.x = amp*x;
           tmp.y = amp*y;
+          //tmpamp = amp;
+          //tmpphase = phase;
+
         }
        h[i] = tmp;
+       //ampinterp[i]=tmpamp;
+       //phaseinterp[i]=tmpphase;
     }
     return;
+
 }
 
 __global__ void linear_interp_cor(float2 *h, float df, int hlen,
@@ -272,6 +291,8 @@ __global__ void linear_interp_cor(float2 *h, float df, int hlen,
 
     */
 
+
+    
     __shared__ int low[1];
     __shared__ int high[1];
     int idx;
@@ -282,11 +303,15 @@ __global__ void linear_interp_cor(float2 *h, float df, int hlen,
     // Load values in global memory into shared memory that
     // all threads in this block will use:
 
+    /*
+
     if (threadIdx.x == 0) {
         low[0] = lower[blockIdx.x];
         high[0] = upper[blockIdx.x];
     }
     __syncthreads();
+
+    */
 
     int i = ${ntpb}*blockIdx.x + threadIdx.x;
 
@@ -316,14 +341,22 @@ __global__ void linear_interp_cor(float2 *h, float df, int hlen,
              phase = tex1Dfetch(phase_tex, idx);
           }
           __sincosf(phase, &y, &x);
-          //tmp.x = amp*x*s[i].x + amp*y*s[i].y;                                     
-          //tmp.y = amp*x*s[i].y - amp*y*s[i].x; 
-          tmp.x = amp*x;
-          tmp.y = amp*y;
+          tmp.x = amp*x*s[i].x + amp*y*s[i].y;                                     
+          tmp.y = amp*x*s[i].y - amp*y*s[i].x; 
+          //tmp.x = amp*x;
+          //tmp.y = amp*y;
         }
 
        h[i] = tmp;
     }
+    
+    /*
+    int i = ${ntpb}*blockIdx.x + threadIdx.x; 
+    if(i < hlen) {
+        h[i].x=1;
+        h[i].y=0;
+    }
+    */
 
     return;
 
@@ -350,6 +383,7 @@ def get_dckernel(slen):
         fn1.prepare("PPifff", texrefs=[freq_tex])
         fn2 = mod.get_function("linear_interp")
         fn2.prepare("PfiffiPP", texrefs=[freq_tex, amp_tex, phase_tex])
+        #fn2.prepare("PfiffiPPPP", texrefs=[freq_tex, amp_tex, phase_tex])
         fn3 = mod.get_function("linear_interp_cor")
         fn3.prepare("PfiffiPPP", texrefs=[freq_tex, amp_tex, phase_tex])
         dckernel_cache[nb] = (fn1, fn2, fn3, freq_tex, amp_tex, phase_tex, nt, nb)
@@ -394,11 +428,13 @@ class CUDALinearInterpolate(object):
         pycbc.scheme.mgr.state.context.synchronize()
         return
 
-def inline_linear_interp(amps, phases, freqs, output, df, flow, s=None, fused_function=False, imin=None, start_index=None):
+#def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start_index=None, 
+#                         s=None, fused_function=False, ampinterp=None, phaseinterp=None):
+def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start_index=None,
+                         s=None, fused_function=False):
+
     # Note that imin and start_index are ignored in the GPU code; they are only
     # needed for CPU.
-    print fused_function
-
     if output.precision == 'double':
         raise NotImplementedError("Double precision linear interpolation not currently supported on CUDA scheme")
     flow = numpy.float32(flow)
@@ -412,23 +448,51 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, s=None, fused_fu
     amps_gpu.bind_to_texref_ext(atex, allow_offset=False)
     phases_gpu = gpuarray.to_gpu(phases)
     phases_gpu.bind_to_texref_ext(ptex, allow_offset=False)
-    fn1 = fn1.prepared_call
     df = numpy.float32(df)
     g_out = output.data.gpudata
+    #g_ampinterp = ampinterp.data.gpudata
+    #g_phaseinterp = phaseinterp.data.gpudata
     lower = zeros(nb, dtype=numpy.int32).data.gpudata
     upper = zeros(nb, dtype=numpy.int32).data.gpudata
-    fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
+
+
+    #print "amps:", len(amps), type(amps)
+    #print "output:", len(output), type(output)
+    #print "df:", df, type(df)
+    #print "hlen:", hlen, type(hlen)
+    #print "flow:", flow, type(flow)
+    #print "fmax:", fmax, type(fmax)
+    #print "texlen:", texlen, type(texlen)
+    #print "lower:", lower, type(lower)
+    #print "upper:", upper, type(upper)
+
+
     if fused_function:
-        fn3 = fn2.prepared_call
+        fn1 = fn1.prepared_call
+        fn3 = fn3.prepared_call
+        #print fn1
+        #print dir(fn1)
+        #print type(fn1)
+        #print fn3
+        #print dir(fn3)
+        #print type(fn3)
         g_s = s.data.gpudata
-        fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper)
-        print "using fn3"
+        fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
+        fn3((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_s)
+        #print "using fn3"
+        #print "using fn3: {0}; fn2 is {1}".format(fn3, fn2)
     else:
+        fn1 = fn1.prepared_call
         fn2 = fn2.prepared_call
+        #print fn1, dir(fn1), type(fn1)
+        #print fn2, dir(fn2), type(fn2)
+        fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
         fn2((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper)
-        print "using fn2"
-    print "before synch"
+        #fn2((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_ampinterp, g_phaseinterp)
+        #print "using fn2"
+    #print "before synch"
     pycbc.scheme.mgr.state.context.synchronize()
-    print "after synch"
+    #print "after synch"
+    #return output, ampinterp, phaseinterp
     return output
 

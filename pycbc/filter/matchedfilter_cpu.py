@@ -153,6 +153,11 @@ class CPUCorrelator(_BaseCorrelator):
         qtilde = self.z # pylint:disable=unused-variable
         arrlen = self.arrlen # pylint:disable=unused-variable
         segsize = self.segsize # pylint:disable=unused-variable
+
+        print "htilde length: {0}, htilde dtype: {1}, htilde pointer: {2}".format(len(htilde), htilde.dtype, htilde.__array_interface__['data'])
+        print "stilde length: {0}, stilde dtype: {1}, stilde pointer: {2}".format(len(stilde), stilde.dtype, stilde.__array_interface__['data'])
+        print "qtilde length: {0}, qtilde dtype: {1}, qtilde pointer: {2}".format(len(qtilde), qtilde.dtype, qtilde.__array_interface__['data'])
+
         inline(self.code, ['htilde', 'stilde', 'qtilde', 'arrlen', 'segsize'],
                extra_compile_args = [WEAVE_FLAGS] + omp_flags,
                #extra_compile_args = ['-mno-avx -mno-sse2 -mno-sse3 -mno-ssse3 -mno-sse4 -mno-sse4.1 -mno-sse4.2 -mno-sse4a -O2 -w'] + omp_flags,

@@ -163,8 +163,10 @@ _linear_decompress_code = r"""
 # for single precision
 _linear_decompress_code32 = _linear_decompress_code.replace('double', 'float')
 
+#def inline_linear_interp(amp, phase, sample_frequencies, output,
+#                         df, f_lower, imin, start_index, s=None, fused_function=None, ampinterp=None, phaseinterp=None):
 def inline_linear_interp(amp, phase, sample_frequencies, output,
-                         df, f_lower, imin, start_index):
+                         df, f_lower, imin, start_index, s=None, fused_function=None):
     # The CPU code does not reference f_lower, but GPU needs it
     if output.precision == 'single':
         code = _linear_decompress_code32
