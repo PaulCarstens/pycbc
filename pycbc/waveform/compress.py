@@ -405,14 +405,14 @@ def fd_decompress(amp, phase, sample_frequencies, out=None, df=None,
         if fused_function and s is None:
             raise ValueError("Fused interpolate and correlate function requires template s to be passed as an argument")
         # Call the scheme-dependent function
-        print "before calling inline_linear_interp"
+        #print "before calling inline_linear_interp"
         #inline_linear_interp(amp, phase, sample_frequencies, out,
         #                     df, f_lower, imin=imin, start_index=start_index, s=s, fused_function=fused_function,
         #                     ampinterp=ampinterp, phaseinterp=phaseinterp)
         inline_linear_interp(amp, phase, sample_frequencies, out,
                              df, f_lower, imin=imin, start_index=start_index, s=s, fused_function=fused_function) 
 
-        print "after calling inline_linear_interp"
+        #print "after calling inline_linear_interp"
     else:
         # use scipy for fancier interpolation
         sample_frequencies = numpy.array(sample_frequencies)

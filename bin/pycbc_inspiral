@@ -289,7 +289,7 @@ with ctx:
                                opt.waveform_decompression_method if opt.use_compressed_waveforms else None,
                                fused_function=opt.fused_function)
 
-    matched_filter = MatchedFilterControl(opt.low_frequency_cutoff, None,
+    matched_filter = MatchedFilterControl(flow, None,
                                           opt.snr_threshold, tlen, delta_f, complex64,
                                           segments, template_mem, use_cluster,
                                           downsample_factor=opt.downsample_factor,
@@ -297,8 +297,46 @@ with ctx:
                                           upsample_method=opt.upsample_method,
                                           gpu_callback_method=opt.gpu_callback_method,
                                           cluster_function=opt.cluster_function,
-                                          fused_function=opt.fused_function,
-                                          bank=bank if opt.fused_function else None)
+                                          fused_function=opt.fused_function, bank=bank)
+
+    #bank = waveform.FilterBank("/home/jwillis/projects/sample_rate_pycbc/subbank1.hdf", 524289, 0.001953125, low_frequency_cutoff=20.0,
+    #                            dtype=complex64, phase_order=-1, taper=None,
+    #                            approximant=['SPAtmplt:mtotal<4', 'SEOBNRv4_ROM:else'],
+    #                            out=template_mem, max_template_length=None, enable_compressed_waveforms=True,
+    #                            waveform_decompression_method="inline_linear", fused_function=True)
+    #matched_filter=MatchedFilterControl(27, None, 5.5, 1048576, 0.001953125, complex64, segments,
+    #                                     template_mem, use_cluster=True, downsample_factor=1,
+    #                                     upsample_threshold=None, upsample_method="pruned_fft",
+    #                                     gpu_callback_method="none", cluster_function="symmetric",
+    #                                     fused_function=True, bank=bank)
+
+    print "BANK"
+    print opt.bank_file, type(opt.bank_file), " : ", "/home/jwillis/projects/sample_rate_pycbc/subbank1.hdf", type("/home/jwillis/projects/sample_rate_pycbc/subbank1.hdf")
+    print flen, type(flen), " : ", 524289, type(524289)
+    print opt.enable_bank_start_frequency
+    print flow, type(flow), " : ", 20.0, type(20.0)
+    print delta_f, type(delta_f), " : ", 0.001953125, type(0.001953125)
+    print opt.order, type(opt.order), " : ", -1, type(-1)
+    print opt.taper_template, type(opt.taper_template), " : ", None, type(None)
+    print opt.approximant, type(opt.approximant), " : ", ['SPAtmplt:mtotal<4', 'SEOBNRv4_ROM:else'], type(['SPAtmplt:mtotal<4', 'SEOBNRv4_ROM:else'])
+    print opt.max_template_length, type(opt.max_template_length), " : ", None, type(None)
+    print opt.use_compressed_waveforms, type(opt.use_compressed_waveforms), " : ", True, type(True)
+    print opt.waveform_decompression_method, type(opt.waveform_decompression_method), " : ", "inline_linear", type("inline_linear")
+    print opt.fused_function, type(opt.fused_function), " : ", True, type(True)
+    
+    print "MATCHED FILTER"
+    print opt.low_frequency_cutoff, type(opt.low_frequency_cutoff), " : ", 20.0, type(20.0)
+    print opt.snr_threshold, type(opt.snr_threshold), " : ", 5.5, type(5.5)
+    print tlen, type(tlen), " : ", 1048576, type(1048576)
+    print delta_f, type(delta_f), " : ", 0.001953125, type(0.001953125)
+    print use_cluster, type(use_cluster), " : ", True, type(True)
+    print opt.downsample_factor, type(opt.downsample_factor), " : ", 1, type(1)
+    print opt.upsample_threshold, type(opt.upsample_threshold), " : ", None, type(None)
+    print opt.upsample_method, type(opt.upsample_method), " : ", "pruned_fft", type("prunded_fft")
+    print opt.gpu_callback_method, type(opt.gpu_callback_method), " : ", "none", type("none")
+    print opt.cluster_function, type(opt.cluster_function), " : ", "symmetric", type("symmetric")
+    print opt.fused_function, type(opt.fused_function), " : ", True, type(True)
+
 
     sg_chisq = SingleDetSGChisq.from_cli(opt, bank, opt.chisq_bins)
 

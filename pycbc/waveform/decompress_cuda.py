@@ -464,10 +464,11 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start
     #g_phaseinterp = phaseinterp.data.gpudata
     lower = zeros(nb, dtype=numpy.int32).data.gpudata
     upper = zeros(nb, dtype=numpy.int32).data.gpudata
-
+    print freqs[0]
+    print flow
 
     #print "amps:", len(amps), type(amps)
-    print "output:", len(output), type(output)
+    #print "output:", len(output), type(output)
     #print "df:", df, type(df)
     #print "hlen:", hlen, type(hlen)
     #print "flow:", flow, type(flow)
@@ -476,7 +477,7 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start
     #print "lower:", lower, type(lower)
     #print "upper:", upper, type(upper)
 
-    print "FLOW: {0}, FMAX: {1}".format(flow, fmax)
+    #print "FLOW: {0}, FMAX: {1}".format(flow, fmax)
 
     if fused_function:
         fn1 = fn1.prepared_call
@@ -500,10 +501,10 @@ def inline_linear_interp(amps, phases, freqs, output, df, flow, imin=None, start
         fn1((1, 1), (nb, 1, 1), lower, upper, texlen, df, flow, fmax)
         fn2((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper)
         #fn2((nb, 1), (nt, 1, 1), g_out, df, hlen, flow, fmax, texlen, lower, upper, g_ampinterp, g_phaseinterp)
-        print "using fn2"
-    #print "before synch"
+        #print "using fn2"
+    print "before synch"
     pycbc.scheme.mgr.state.context.synchronize()
-    #print "after synch"
+    print "after synch"
     #return output, ampinterp, phaseinterp
     return output
 

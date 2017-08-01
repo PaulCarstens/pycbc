@@ -619,7 +619,7 @@ class FilterBank(TemplateBank):
         self.fused_function = fused_function
         #self.ampinterp=ampinterp
         #self.phaseinterp=phaseinterp
-
+        print "filterbank init flow:", self.f_lower
         if self.out is None:
             self.empty_htilde = FrequencySeries(zeros(self.filter_length, dtype=self.dtype), delta_f=self.delta_f)
         else:
@@ -673,13 +673,14 @@ class FilterBank(TemplateBank):
 
         # Create memory space for writing the decompressed waveform
         decomp_scratch = FrequencySeries(tempout[0:self.filter_length], delta_f=delta_f, copy=False)
-        print "tempout pointer:", tempout.ptr, "tempout len:", len(tempout)
-        print "decompscratch pointer:", decomp_scratch.ptr, "decompscratch len:", len(decomp_scratch)
+        #print "tempout pointer:", tempout.ptr, "tempout len:", len(tempout)
+        #print "decompscratch pointer:", decomp_scratch.ptr, "decompscratch len:", len(decomp_scratch)
 
         # Get the decompressed waveform
         if fused_function and s is None:
             raise ValueError("Fused function requires waveform s to be correlated")
-        print "before calling .decompress"
+        #print "before calling .decompress"
+        print "get decompressed waveform flow:", f_lower
         hdecomp = compressed_waveform.decompress(out=decomp_scratch, f_lower=f_lower,
                                                  s=s, fused_function=fused_function,
                                                  interpolation=decompression_method)
@@ -687,8 +688,8 @@ class FilterBank(TemplateBank):
         #                                                                 s=s, fused_function=fused_function, 
         #                                                                 interpolation=decompression_method,
         #                                                                 ampinterp=ampinterp, phaseinterp=phaseinterp)
-        print "after calling .decompress"
-        print "hdecomp pointer:", hdecomp.ptr, "hdecomp len:", len(hdecomp)
+        #print "after calling .decompress"
+        #print "hdecomp pointer:", hdecomp.ptr, "hdecomp len:", len(hdecomp)
         p = props(self.table[index])
         p.pop('approximant')
         try:
@@ -699,7 +700,7 @@ class FilterBank(TemplateBank):
             tmpltdur = get_waveform_filter_length_in_time(approximant, **p)
         hdecomp.chirp_length = tmpltdur
         hdecomp.length_in_time = hdecomp.chirp_length
-        print "returning hdecomp"
+        #print "returning hdecomp"
         #return hdecomp, A, phi
         return hdecomp
 
@@ -746,12 +747,15 @@ class FilterBank(TemplateBank):
         # Find the start frequency, if variable
         if self.f_lower is None:
             f_low = self.table[index].f_lower
+            print "option 1"
         elif self.max_template_length is not None:
+            print "option 2"
             f_low = find_variable_start_frequency(approximant,
                                                   self.table[index],
                                                   self.f_lower,
                                                   self.max_template_length)
         else:
+            print "option 3"
             f_low = self.f_lower
         logging.info('%s: generating %s from %s Hz' % (index, approximant, f_low))
 
@@ -770,7 +774,8 @@ class FilterBank(TemplateBank):
             # Get the waveform filter
             distance = 1.0 / DYN_RANGE_FAC
             if self.has_compressed_waveforms and self.enable_compressed_waveforms:
-                print "tempout pointer", tempout.ptr, "tempout len:", len(tempout)
+                #print "tempout pointer", tempout.ptr, "tempout len:", len(tempout)
+                print "_getitem_ flow:", f_low
                 htilde = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
                                                         approximant=approximant, df=None)
                 #htilde, amps, phases = self.get_decompressed_waveform(tempout, index, f_lower=f_low,
@@ -793,7 +798,7 @@ class FilterBank(TemplateBank):
                 template_duration = htilde.chirp_length
 
         self.table[index].template_duration = template_duration
-        print "assigning htilde attributes"
+        #print "assigning htilde attributes"
         htilde = htilde.astype(self.dtype)
         htilde.f_lower = f_low
         htilde.min_f_lower = self.min_f_lower
@@ -807,7 +812,7 @@ class FilterBank(TemplateBank):
         # Add sigmasq as a method of this instance
         htilde.sigmasq = types.MethodType(sigma_cached, htilde)
         htilde._sigmasq = {}
-        print "returning htilde"
+        #print "returning htilde"
         #return htilde, amps, phases
         return htilde
 

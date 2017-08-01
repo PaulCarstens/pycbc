@@ -192,17 +192,18 @@ class MatchedFilterControl(object):
             self.kmin, self.kmax = get_cutoff_indices(self.flow, self.fhigh,
                                                       self.delta_f, self.tlen)
 
-            # Set up the correlation operations for each analysis segment
-            self.corr_slice = slice(self.kmin, self.kmax)
-            self.correlators = []
-            for seg in self.segments:
-                #print "htilde pointer:", self.htilde[self.corr_slice].ptr, "htilde length:", len(self.htilde[self.corr_slice])
-                #print "seg pointer:", seg[self.corr_slice].ptr, "seg length:", len(seg[self.corr_slice])
-                #print "output pointer:", self.corr_mem[self.corr_slice].ptr, "output length:", len(self.corr_mem[self.corr_slice])
-                corr = Correlator(self.htilde[self.corr_slice],
-                                  seg[self.corr_slice],
-                                  self.corr_mem[self.corr_slice])
-                self.correlators.append(corr)
+            if not self.fused_function:
+                # Set up the correlation operations for each analysis segment
+                self.corr_slice = slice(self.kmin, self.kmax)
+                self.correlators = []
+                for seg in self.segments:
+                    #print "htilde pointer:", self.htilde[self.corr_slice].ptr, "htilde length:", len(self.htilde[self.corr_slice])
+                    #print "seg pointer:", seg[self.corr_slice].ptr, "seg length:", len(seg[self.corr_slice])
+                    #print "output pointer:", self.corr_mem[self.corr_slice].ptr, "output length:", len(self.corr_mem[self.corr_slice])
+                    corr = Correlator(self.htilde[self.corr_slice],
+                                      seg[self.corr_slice],
+                                      self.corr_mem[self.corr_slice])
+                    self.correlators.append(corr)
 
             # setup up the ifft we will do
             self.ifft = IFFT(self.corr_mem, self.snr_mem)
@@ -314,14 +315,14 @@ class MatchedFilterControl(object):
             raise ValueError("FilterBank must be using fused interpolate and correlate function as well")
 
         norm = (4.0 * self.delta_f) / sqrt(template_norm)
-        tempout = zeros(len(self.corr_mem), dtype=self.dtype)
-        print "before calling get_decompressed_waveform"
+        #tempout = zeros(len(self.corr_mem), dtype=self.dtype)
+        #print "before calling get_decompressed_waveform"
 
-        print "length of corr_mem: {0}, length of slice: {1}, length of tempout: {2}".format(len(self.corr_mem), len(self.corr_mem[self.corr_slice]), len(tempout))
+        #print "length of corr_mem: {0}, length of slice: {1}, length of tempout: {2}".format(len(self.corr_mem), len(self.corr_mem[self.corr_slice]), len(tempout))
 
-        self.corr_mem[0:self.flen] = self.bank.get_decompressed_waveform(tempout, index=tnum, df=self.delta_f, f_lower=self.flow, 
-                                                                             s=self.segments[segnum], fused_function=True)
-        print "after calling get_decompressed_waveform"
+        self.bank.get_decompressed_waveform(self.corr_mem[0:self.flen], index=tnum, df=self.delta_f, 
+                                            s=self.segments[segnum], fused_function=True)
+        #print "after calling get_decompressed_waveform"
         self.ifft.execute()
         snrv, idx = self.threshold_and_clusterers[segnum].threshold_and_cluster(self.snr_threshold / norm, window)
         
@@ -332,7 +333,7 @@ class MatchedFilterControl(object):
 
         snr = TimeSeries(self.snr_mem, epoch=epoch, delta_t=self.delta_t, copy=False)
         corr = FrequencySeries(self.corr_mem, delta_f=self.delta_f, copy=False)
-        print "length of corr: {0}".format(len(corr))
+        #print "length of corr: {0}".format(len(corr))
         return snr, norm, corr, idx, snrv
 
     def full_matched_filter_and_cluster_fc(self, segnum, template_norm, window, tnum=None, epoch=None):
